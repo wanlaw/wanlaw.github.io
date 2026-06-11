@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>한빛단상</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{ --bg:#f6f7fb; --panel:#fff; --text:#0f172a; --muted:#64748b; --border:#e5e7eb; --primary:#2563eb; --primary-ink:#fff; --danger:#ef4444; --accent:#0ea5e9; }
+    html,body{height:100%}
+    body{margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Pretendard,sans-serif; line-height:1.45; -webkit-user-select:none; user-select:none;}
+    input,textarea{ -webkit-user-select:text; user-select:text; }
+    .container{width:600px; margin:24px 16px;}
+    .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:0 6px 24px rgba(15,23,42,.04);}
+    .header{display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid var(--border);}
+    .title{font-weight:800; font-size:18px;}
+    .actions{display:flex; gap:8px; align-items:center;}
+    .btn{appearance:none; border:1px solid var(--border); background:#fff; color:var(--text); padding:9px 12px; border-radius:10px; font-weight:700; cursor:pointer;}
+    .btn.primary{background:var(--primary); color:var(--primary-ink); border-color:var(--primary);}
+    .btn.ghost{background:#fff;}
+    .btn.danger{background:var(--danger); color:#fff; border-color:var(--danger);}
+    .btn:disabled{opacity:.6; cursor:not-allowed;}
+    .muted{color:var(--muted); font-size:13px;}
+    .status-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle;}
+    .online{background:#10b981;} .offline{background:#ef4444;} .syncing{background:#f59e0b;}
+    .table-wrap{overflow:auto;}
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    thead th{position:sticky; top:0; background:#fafafa; border-bottom:1px solid var(--border); text-align:left; padding:10px 8px; font-size:13px; color:#374151;}
+    tbody td{border-bottom:1px solid var(--border); padding:10px 8px; font-size:14px; vertical-align:top;}
+    tbody tr:hover{background:#fbfdff;}
+    tbody tr.dragging{opacity:.6; outline:2px dashed var(--accent);}
+    .cell-title{font-weight:700;}
+    .footerbar{display:flex; align-items:center; justify-content:space-between; padding:10px 12px;}
+    .pager{display:flex; gap:8px; align-items:center;}
+    .modal-backdrop{position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:50;}
+    .modal{background:#fff; width:min(600px, 92vw); border-radius:12px; border:1px solid var(--border); display:flex; flex-direction:column; max-height:90vh;}
+    .modal .head{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border);}
+    .modal .body{padding:14px; flex:1 1 auto; overflow:auto; min-height:0; -webkit-overflow-scrolling:touch;}
+    .modal .foot{display:flex; justify-content:flex-end; gap:8px; padding:12px 14px; border-top:1px solid var(--border);}
+    .row{display:flex; gap:10px;}
+    .row>div{flex:1;}
+    .field{display:flex; flex-direction:column; gap:6px; margin-bottom:10px;}
+    .field label{font-size:13px; color:#334155;}
+    input[type="text"], textarea{width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff;}
+    textarea{min-height:160px; resize:vertical;}
+    .view .body{padding:16px;}
+    .view .title{font-size:18px; font-weight:800;}
+    .content{white-space:pre-wrap; margin-top:12px; font-size:14px;}
+    .badge{display:inline-block; margin-left:6px; padding:2px 6px; font-size:11px; border-radius:999px; background:#eef2ff; color:#3730a3;}
+    .badge.local{background:#fff7ed; color:#9a3412; border:1px dashed #fdba74;}
+    .edit-form{display:none; margin-top:8px;}
+    .edit-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:8px;}
+    @media (max-width:640px){ .container{width:100%; margin:12px 8px;} .row{flex-direction:column;} }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="card" aria-label="게시판">
+      <div class="header">
+        <div class="title">한빛단상</div>
+        <div class="actions">
+          <button class="btn ghost" id="refresh-btn" type="button">새로고침</button>
+          <button class="btn primary" id="new-btn" type="button">새 글</button>
+          <span class="muted" id="status"><span class="status-dot syncing"></span>상태 확인중…</span>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table aria-label="게시글 목록" id="board-table">
+          <thead>
+            <tr>
+              <th style="width:64px">번호</th>
+              <th>제목</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="footerbar">
+        <div class="muted" id="summary">0건</div>
+        <div class="pager">
+          <button class="btn ghost" id="prev-btn" type="button">이전</button>
+          <span class="muted" id="page-info">1/1</span>
+          <button class="btn ghost" id="next-btn" type="button">다음</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 작성 모달 (작성자 입력 제거) -->
+  <div class="modal-backdrop" id="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="head">
+        <strong id="modal-title">새 글 작성</strong>
+        <button class="btn ghost" id="modal-close" type="button">닫기</button>
+      </div>
+      <div class="body">
+        <div class="row">
+          <div class="field">
+            <label for="title">제목</label>
+            <input type="text" id="title" placeholder="제목을 입력하세요" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="content">내용</label>
+          <textarea id="content" placeholder="내용을 입력하세요" required></textarea>
+        </div>
+        <div class="muted" id="form-msg"></div>
+      </div>
+      <div class="foot">
+        <button class="btn ghost" id="modal-cancel" type="button">취소</button>
+        <button class="btn primary" id="submit-btn" type="button">등록</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 보기/수정 모달 (작성자 UI 제거, 내용만 표시/수정) -->
+  <div class="modal-backdrop" id="view-backdrop" aria-hidden="true">
+    <div class="modal view" role="dialog" aria-modal="true" aria-labelledby="view-title">
+      <div class="head">
+        <strong>게시글</strong>
+        <div class="actions">
+          <button class="btn ghost" id="view-edit" type="button">수정</button>
+          <button class="btn danger" id="view-delete" type="button">삭제</button>
+          <button class="btn ghost" id="view-close" type="button">닫기</button>
+        </div>
+      </div>
+      <div class="body">
+        <div id="view-read">
+          <div class="title" id="view-title"></div>
+          <div class="content" id="view-content"></div>
+        </div>
+        <div id="view-edit-form" class="edit-form">
+          <div class="field">
+            <label for="edit-title">제목</label>
+            <input type="text" id="edit-title">
+          </div>
+          <div class="field">
+            <label for="edit-content">내용</label>
+            <textarea id="edit-content"></textarea>
+          </div>
+          <div class="edit-actions">
+            <button class="btn ghost" id="edit-cancel" type="button">취소</button>
+            <button class="btn primary" id="edit-save" type="button">저장</button>
+          </div>
+          <div class="muted" id="edit-msg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========= 설정(게시판 식별자) =========
+    const BOARD_ID = 'hanbit'; // 파일마다 값만 바꾸면 독립 게시판이 됩니다.
+    const API_BASE = '/api.php';
+    const ADMIN_KEY_STORE = `board_admin_key_${BOARD_ID}`;
+    const LS_POSTS = `posts_${BOARD_ID}`;
+    const LS_QUEUE = `queue_${BOARD_ID}`;
+    const LS_SHADOW = `shadow_${BOARD_ID}`;
+
+    // ========= 복사 금지(행 드래그는 예외) =========
+    document.addEventListener('contextmenu', e => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+      e.preventDefault();
+    });
+    ['copy','cut','paste','dragstart'].forEach(evt => {
+      document.addEventListener(evt, e => {
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+        if (evt === 'dragstart' && e.target?.closest('tr[data-id]')) return;
+        e.preventDefault();
+      });
+    });
+
+    // ========= 유틸 =========
+    const qs = s => document.querySelector(s);
+    const qsa = s => Array.from(document.querySelectorAll(s));
+    function escapeHtml(s) { return (s ?? '').toString().replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function uid(){ return 'tmp-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+    function nowSec(){ return Math.floor(Date.now()/1000) }
+    function loadJSON(key, f){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):f; }catch{return f;} }
+    function saveJSON(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch{} }
+    function getAdminKey(){ return sessionStorage.getItem(ADMIN_KEY_STORE) || ''; }
+    function ensureAdminKeyInteractive(){
+      let k = getAdminKey();
+      if (!k) { k = window.prompt('관리자 키를 입력하세요'); if(!k) return ''; sessionStorage.setItem(ADMIN_KEY_STORE, k); }
+      return k;
+    }
+
+    // ========= 상태 =========
+    const state = {
+      online:false, syncing:false,
+      page:1, pages:1, limit:20, total:0,
+      serverItems:[],
+      localItems:loadJSON(LS_POSTS, []),
+      queue:loadJSON(LS_QUEUE, []),
+      shadow:loadJSON(LS_SHADOW, {}),
+      current:null
+    };
+    function setStatus(mode){
+      const el = qs('#status');
+      if (mode === 'online'){ el.innerHTML = '<span class="status-dot online"></span>온라인'; }
+      else if (mode === 'syncing'){ el.innerHTML = '<span class="status-dot syncing"></span>동기화 중…'; }
+      else { el.innerHTML = '<span class="status-dot offline"></span>오프라인 모드'; }
+    }
+
+    // ========= 서버 HTTP =========
+    async function http(url, options={}){
+      const res = await fetch(url, options);
+      let data=null; try{ data = await res.json(); }catch{}
+      if(!res.ok){ const msg = (data && (data.error||data.detail)) || `HTTP ${res.status}`; throw new Error(msg); }
+      return data;
+    }
+    function withBoard(query){ return query + (query.includes('?') ? '&' : '?') + 'board=' + encodeURIComponent(BOARD_ID); }
+    async function apiList(page=1, limit=20){ return http(withBoard(`${API_BASE}?action=list&page=${page}&limit=${limit}`)); }
+    async function apiCreate({title, content, admin_key}){
+      return http(withBoard(`${API_BASE}?action=create`), {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title, content, author:'', admin_key, board: BOARD_ID })
+      });
+    }
+    async function apiUpdate({id, title, content, admin_key}){
+      return http(withBoard(`${API_BASE}?action=update`), {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id, title, content, author:'', admin_key, board: BOARD_ID })
+      });
+    }
+    async function apiDeleteServer(id, admin_key){
+      return http(withBoard(`${API_BASE}?action=delete`), {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ id, admin_key, board: BOARD_ID })
+      });
+    }
+
+    // ========= 병합/표시 =========
+    function mergedItems(){
+      const hideIds = new Set(state.queue.filter(q=>q.op==='delete' && q.id).map(q=>q.id));
+      const server = state.serverItems.filter(p=>!hideIds.has(p.id)).map(p=>{
+        const sh = state.shadow[p.id];
+        return sh ? { ...p, title: sh.title??p.title, content: sh.content??p.content, updated_at: sh.updated_at??p.updated_at } : p;
+      });
+      const locals = state.localItems.map(p=>({ id:p.tempId, title:p.title, content:p.content, created_at:p.created_at, isLocal:true }));
+      const all = server.concat(locals);
+      all.sort((a,b)=> b.created_at - a.created_at);
+      return all;
+    }
+    function renderTable(){
+      const tb = qs('#tbody'); tb.innerHTML='';
+      const all = mergedItems();
+      state.total = all.length;
+      state.pages = Math.max(1, Math.ceil(state.total/state.limit));
+      if (state.page>state.pages) state.page=state.pages;
+      const start=(state.page-1)*state.limit;
+      const pageItems = all.slice(start, start+state.limit);
+      const startIndex = state.total - start;
+      pageItems.forEach((p, idx)=>{
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-id', p.id);
+        tr.setAttribute('draggable', 'true');
+        tr.innerHTML = `
+          <td>${startIndex - idx}</td>
+          <td class="cell-title">
+            <a href="#" class="post-link" data-id="${p.id}" style="text-decoration:none; color:inherit;">
+              ${escapeHtml(p.title)} ${p.isLocal ? '<span class="badge local" title="오프라인 작성(동기화 대기)">오프라인</span>' : ''}
+            </a>
+          </td>
+        `;
+        tb.appendChild(tr);
+      });
+      qs('#summary').textContent = `총 ${state.total}건`;
+      qs('#page-info').textContent = `${state.page}/${state.pages}`;
+      enableRowDnD();
+    }
+
+    // ========= 행 드래그(표시용) =========
+    function enableRowDnD(){
+      const rows = qsa('#tbody tr[data-id]');
+      let dragSrcEl=null;
+      rows.forEach(row=>{
+        row.addEventListener('dragstart', e=>{ dragSrcEl=row; row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain', row.dataset.id);}catch{} });
+        row.addEventListener('dragend', ()=>{ row.classList.remove('dragging'); dragSrcEl=null; });
+        row.addEventListener('dragover', e=>{
+          e.preventDefault();
+          const target=row, tb=target.parentElement, rect=target.getBoundingClientRect();
+          const after = (e.clientY-rect.top)>rect.height/2;
+          if(dragSrcEl && dragSrcEl!==target){ if(after) tb.insertBefore(dragSrcEl, target.nextSibling); else tb.insertBefore(dragSrcEl, target); }
+        });
+        row.addEventListener('drop', e=> e.preventDefault());
+      });
+    }
+
+    // ========= 로컬/대기열/그림자 =========
+    function addLocalPost({title, content}){
+      const tempId = uid();
+      const post = { tempId, title, content, created_at: nowSec() };
+      state.localItems.unshift(post); saveJSON(LS_POSTS, state.localItems);
+      state.queue.push({ op:'create', tempId, post }); saveJSON(LS_QUEUE, state.queue);
+    }
+    function removeLocalTemp(tempId){
+      state.localItems = state.localItems.filter(p=>p.tempId!==tempId); saveJSON(LS_POSTS, state.localItems);
+      state.queue = state.queue.filter(q=>!((q.op==='create'&&q.tempId===tempId)||(q.op==='delete-temp'&&q.tempId===tempId))); saveJSON(LS_QUEUE, state.queue);
+    }
+    function queueDeleteServer(id){
+      if(!state.queue.some(q=>q.op==='delete' && q.id===id)){ state.queue.push({op:'delete', id}); saveJSON(LS_QUEUE, state.queue); }
+    }
+    function queueUpdateServer(id, {title, content}){
+      const ex = state.queue.find(q=>q.op==='update' && q.id===id);
+      if (ex) ex.post = {title, content};
+      else state.queue.push({op:'update', id, post:{title, content}});
+      saveJSON(LS_QUEUE, state.queue);
+      state.shadow[id] = { title, content, updated_at: nowSec() }; saveJSON(LS_SHADOW, state.shadow);
+    }
+    function clearShadow(id){ if(state.shadow[id]){ delete state.shadow[id]; saveJSON(LS_SHADOW, state.shadow); } }
+
+    // ========= 서버 새로고침/동기화 =========
+    async function fetchServerListSafe(){
+      try{ const data = await apiList(1, state.limit); state.serverItems = data.items||[]; state.online=true; setStatus(state.syncing?'syncing':'online'); }
+      catch(e){ state.online=false; setStatus('offline'); }
+    }
+    async function syncQueue(){
+      if(!state.online || !state.queue.length) return;
+      state.syncing=true; setStatus('syncing');
+      const admin_key = getAdminKey() || ensureAdminKeyInteractive(); if(!admin_key){ state.syncing=false; setStatus('online'); return; }
+      for(let i=0;i<state.queue.length;i++){
+        const it = state.queue[i];
+        try{
+          if(it.op==='create'){ await apiCreate({ title:it.post.title, content:it.post.content, admin_key }); removeLocalTemp(it.tempId); }
+          else if(it.op==='delete'){ await apiDeleteServer(it.id, admin_key); clearShadow(it.id); }
+          else if(it.op==='update'){ await apiUpdate({ id:it.id, title:it.post.title, content:it.post.content, admin_key }); clearShadow(it.id); }
+          else if(it.op==='delete-temp'){ removeLocalTemp(it.tempId); }
+          state.queue.splice(i,1); i--; saveJSON(LS_QUEUE, state.queue);
+        }catch(e){ console.warn('동기화 실패:', e.message); break; }
+      }
+      state.syncing=false; setStatus('online'); await fetchServerListSafe();
+    }
+    async function refresh(){ await fetchServerListSafe(); renderTable(); }
+
+    // ========= 보기 모달 =========
+    function openView(item){
+      state.current = item;
+      const title = item.title || '';
+      const isLocal = !!item.isLocal || (typeof item.id==='string' && item.id.startsWith('tmp-'));
+      qs('#view-title').innerHTML = escapeHtml(title) + (isLocal ? ' <span class="badge local">오프라인</span>' : '');
+      qs('#view-content').textContent = item.content || '';
+      qs('#edit-title').value = title;
+      qs('#edit-content').value = item.content || '';
+      qs('#edit-msg').textContent='';
+      qs('#view-read').style.display='';
+      qs('#view-edit-form').style.display='none';
+      qs('#view-backdrop').style.display='flex';
+    }
+    function closeView(){ qs('#view-backdrop').style.display='none'; state.current=null; }
+    function enterEditMode(){ qs('#view-read').style.display='none'; qs('#view-edit-form').style.display=''; }
+    function exitEditMode(){ qs('#view-read').style.display=''; qs('#view-edit-form').style.display='none'; }
+
+    // ========= 이벤트(위임) =========
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      await refresh();
+      setInterval(async ()=>{ await fetchServerListSafe(); await syncQueue(); renderTable(); }, 8000);
+
+      document.addEventListener('click', async (ev)=>{
+        const t = ev.target;
+
+        if (t.closest('#refresh-btn')){ await refresh(); await syncQueue(); renderTable(); return; }
+        if (t.closest('#new-btn')){ qs('#modal-backdrop').style.display='flex'; return; }
+        if (t.closest('#modal-close') || t.closest('#modal-cancel')){ qs('#modal-backdrop').style.display='none'; return; }
+
+        if (t.closest('#submit-btn')){
+          const title=qs('#title').value.trim(), content=qs('#content').value.trim(), msg=qs('#form-msg');
+          if(!title || !content){ msg.textContent='제목/내용을 입력하세요.'; return; }
+          msg.textContent='등록 중…';
+          const admin_key = ensureAdminKeyInteractive(); if(!admin_key){ msg.textContent='관리자 키가 필요합니다.'; return; }
+          if (state.online){
+            try{
+              await apiCreate({ title, content, admin_key });
+              msg.textContent='등록 완료!'; qs('#modal-backdrop').style.display='none'; qs('#title').value=''; qs('#content').value='';
+              await refresh(); await syncQueue(); renderTable(); return;
+            }catch(e){ console.warn('온라인 작성 실패, 오프라인 저장으로 폴백:', e.message); }
+          }
+          addLocalPost({ title, content });
+          msg.textContent='오프라인으로 임시 저장됨. 연결 시 자동 업로드됩니다.';
+          qs('#modal-backdrop').style.display='none'; qs('#title').value=''; qs('#content').value='';
+          renderTable(); return;
+        }
+
+        const link = t.closest('.post-link');
+        if (link){
+          ev.preventDefault();
+          const id = link.getAttribute('data-id');
+          const item = mergedItems().find(x=>String(x.id)===String(id));
+          if (item) openView(item);
+          return;
+        }
+
+        if (t.closest('#view-close')){ closeView(); return; }
+        if (t.closest('#view-edit')){ if(!state.current) return; enterEditMode(); return; }
+
+        if (t.closest('#view-delete')){
+          const item = state.current; if(!item) return;
+          if(!confirm('정말 삭제하시겠습니까?')) return;
+          if (String(item.id).startsWith('tmp-') || item.isLocal){
+            state.queue.push({ op:'delete-temp', tempId:String(item.id) }); saveJSON(LS_QUEUE, state.queue);
+            removeLocalTemp(String(item.id)); closeView(); renderTable(); return;
+          }
+          if (state.online){
+            const admin_key = getAdminKey() || ensureAdminKeyInteractive(); if(!admin_key){ alert('관리자 키가 필요합니다.'); return; }
+            try{ await apiDeleteServer(Number(item.id), admin_key); closeView(); await refresh(); renderTable(); }
+            catch(e){ console.warn('온라인 삭제 실패, 큐에 보류:', e.message); queueDeleteServer(Number(item.id)); closeView(); renderTable(); }
+          } else { queueDeleteServer(Number(item.id)); closeView(); renderTable(); }
+          return;
+        }
+
+        if (t.closest('#edit-cancel')){ exitEditMode(); return; }
+
+        if (t.closest('#edit-save')){
+          const item = state.current; if(!item) return;
+          const title=qs('#edit-title').value.trim(), content=qs('#edit-content').value.trim(), emsg=qs('#edit-msg');
+          if(!title || !content){ emsg.textContent='제목/내용을 입력하세요.'; return; }
+          emsg.textContent='저장 중…';
+
+          if (String(item.id).startsWith('tmp-') || item.isLocal){
+            const idx = state.localItems.findIndex(p=>p.tempId===String(item.id));
+            if(idx>=0){ state.localItems[idx].title=title; state.localItems[idx].content=content; saveJSON(LS_POSTS, state.localItems); }
+            const q = state.queue.find(q=>q.op==='create' && q.tempId===String(item.id));
+            if(q){ q.post.title=title; q.post.content=content; saveJSON(LS_QUEUE, state.queue); }
+            item.title=title; item.content=content;
+            qs('#view-title').innerHTML = escapeHtml(title) + ' <span class="badge local">오프라인</span>';
+            qs('#view-content').textContent = content;
+            exitEditMode(); renderTable(); return;
+          }
+
+          const idNum = Number(item.id);
+          const admin_key = getAdminKey() || ensureAdminKeyInteractive(); if(!admin_key){ emsg.textContent='관리자 키가 필요합니다.'; return; }
+
+          if (state.online){
+            try{
+              await apiUpdate({ id:idNum, title, content, admin_key });
+              clearShadow(idNum); emsg.textContent='저장 완료!';
+              item.title=title; item.content=content;
+              qs('#view-title').innerHTML = escapeHtml(title);
+              qs('#view-content').textContent = content;
+              exitEditMode(); await refresh(); renderTable(); return;
+            }catch(e){
+              console.warn('온라인 수정 실패, 큐에 보류:', e.message);
+              queueUpdateServer(idNum, { title, content });
+              item.title=title; item.content=content;
+              qs('#view-title').innerHTML = escapeHtml(title);
+              qs('#view-content').textContent = content;
+              emsg.textContent='오프라인/서버 오류: 수정이 대기열에 저장되었습니다.';
+              exitEditMode(); renderTable(); return;
+            }
+          } else {
+            queueUpdateServer(idNum, { title, content });
+            item.title=title; item.content=content;
+            qs('#view-title').innerHTML = escapeHtml(title);
+            qs('#view-content').textContent = content;
+            emsg.textContent='오프라인: 수정이 대기열에 저장되었습니다.';
+            exitEditMode(); renderTable(); return;
+          }
+        }
+
+        if (t.closest('#prev-btn')){ if(state.page>1){ state.page-=1; renderTable(); } return; }
+        if (t.closest('#next-btn')){ if(state.page<state.pages){ state.page+=1; renderTable(); } return; }
+      });
+
+      window.addEventListener('online', async ()=>{ await refresh(); await syncQueue(); renderTable(); });
+      window.addEventListener('offline', ()=>{ state.online=false; setStatus('offline'); renderTable(); });
+    });
+  </script>
+</body>
+</html>
