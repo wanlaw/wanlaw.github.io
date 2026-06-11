@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- 파일마다 값을 다르게 설정하면 서로 다른 저장소를 사용합니다. 예: bbs, bbs1, bbs2 -->
+  <meta name="board-key" content="law_situation" />
+  <title>법제동향</title>
+  <style>
+    :root{
+      --bg:#f7fafc; --panel:#ffffff; --muted:#6b7280; --text:#0f172a;
+      --primary:#2563eb; --accent:#16a34a; --danger:#dc2626; --border:#e5e7eb;
+      --shadow: 0 8px 24px rgba(15,23,42,0.08);
+      --radius: 12px; --hover:#f1f5f9; --thead:#f8fafc; --input:#ffffff;
+      --drag:#dbeafe; --drag-border:#60a5fa; --pin:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    html{ font-size:15px; } /* 폰트 1pt 축소 */
+    body.copy-guard{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Pretendard,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+      background:
+        radial-gradient(900px 420px at 10% 0%, rgba(96,165,250,0.16), transparent 40%),
+        radial-gradient(700px 420px at 90% 0%, rgba(34,197,94,0.14), transparent 38%),
+        var(--bg);
+      color:var(--text);
+      -webkit-user-select:none; user-select:none; /* 선택 방지 */
+      -webkit-touch-callout:none;
+    }
+    /* 예외: 입력/텍스트/셀렉트/버튼/링크/드래그핸들은 선택 가능 */
+    input, textarea, select, button, a, .drag-handle{
+      -webkit-user-select:text; user-select:text;
+      -webkit-touch-callout:default;
+    }
+    a{color:inherit; text-decoration:none}
+    .wrap{max-width:1100px; margin:40px auto; padding:0 16px}
+
+    /* 헤더 중앙 정렬(3열 그리드) */
+    header{
+      display:grid; grid-template-columns:auto 1fr auto;
+      align-items:center; gap:16px; margin-bottom:18px;
+    }
+    .brand{display:flex; align-items:center; gap:12px; user-select:none}
+    .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#60a5fa,#22c55e);box-shadow:var(--shadow);}
+    .title{text-align:center;}
+    h1{font-size:1.25rem; margin:0}
+    .muted{color:var(--muted)}
+    .flex{display:flex; gap:10px; align-items:center}
+    .spacer{flex:1}
+
+    .panel{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;}
+    .toolbar{display:flex; flex-wrap:wrap; gap:10px; padding:14px; border-bottom:1px solid var(--border); background:#fbfdff;}
+    .toolbar .group{display:flex; gap:8px; align-items:center}
+    input[type="text"], select{background:var(--input); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:10px; outline:none;}
+    input[type="text"]:focus, select:focus{border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,0.15);}
+    button{
+      background:linear-gradient(180deg,#ffffff,#f3f4f6); border:1px solid var(--border);
+      color:var(--text); padding:10px 14px; border-radius:10px; cursor:pointer;
+      transition:transform .05s ease, border-color .2s, box-shadow .2s, background .2s;
+    }
+    button:hover{border-color:#cbd5e1; background:#f8fafc}
+    button:active{transform:translateY(1px)}
+    .btn-accent{background:linear-gradient(180deg,#22c55e,#16a34a); border-color:#15803d; color:#fff;}
+    .btn-danger{background:linear-gradient(180deg,#ef4444,#dc2626); border-color:#b91c1c; color:#fff;}
+    .btn-primary{background:linear-gradient(180deg,#3b82f6,#2563eb); border-color:#1d4ed8; color:#fff;}
+
+    .table-wrap{overflow:auto}
+    table{width:100%; border-collapse:separate; border-spacing:0; background:#fff}
+    thead th{
+      position:sticky; top:0; background:var(--thead); z-index:1; text-align:left;
+      padding:12px; font-weight:700; font-size:.95rem; border-bottom:1px solid var(--border);
+      white-space:nowrap; color:#334155; cursor:default;
+    }
+    tbody td{padding:12px; border-bottom:1px solid var(--border); vertical-align:middle;}
+    tbody tr:hover{background:var(--hover)}
+    tbody tr.drag-over{background:var(--drag); outline:2px dashed var(--drag-border); outline-offset:-2px;}
+
+    .title-cell{display:flex; align-items:center; gap:10px; min-width:280px;}
+    .drag-handle{
+      display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px;
+      border:1px solid var(--border); background:#fff; color:#64748b; cursor:grab; user-select:text; flex-shrink:0;
+    }
+    .drag-handle:hover{background:#f8fafc; border-color:#cbd5e1}
+    .drag-handle:active{cursor:grabbing}
+    .drag-handle svg{width:16px; height:16px}
+
+    .pin-btn{
+      display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:8px;
+      border:1px solid var(--border); background:#fff; color:#64748b; cursor:pointer; flex-shrink:0;
+    }
+    .pin-btn:hover{background:#fff7ed; border-color:#fed7aa}
+    .pin-btn.pinned{color:#fff; background:linear-gradient(180deg,#f59e0b,#d97706); border-color:#b45309}
+    .pin-btn svg{width:16px; height:16px}
+
+    .badge{font-size:.72rem; color:#1d4ed8; background:#e0ecff; border:1px solid #c7daff; padding:2px 8px; border-radius:999px;}
+    .badge-pin{font-size:.72rem; color:#92400e; background:#ffedd5; border:1px solid #fed7aa; padding:2px 8px; border-radius:999px;}
+    .chip{padding:4px 8px; border:1px solid var(--border); border-radius:999px; background:#f8fafc; color:#475569; font-size:.8rem}
+
+    .pagination{display:flex; gap:8px; padding:12px; justify-content:center; border-top:1px solid var(--border); background:#fbfdff;}
+    .pagination button[aria-current="page"]{border-color:var(--primary); box-shadow:0 0 0 1px var(--primary) inset; font-weight:700; background:#eef2ff;}
+
+    /* 모달: 기본 숨김, open일 때만 표시 + 본문 스크롤 */
+    dialog{
+      display:none; width:min(900px, 95vw); max-height:85vh; border:none; border-radius:16px; padding:0;
+      overflow:hidden; background:var(--panel); color:var(--text); box-shadow:0 24px 60px rgba(15,23,42,0.18); border:1px solid var(--border);
+    }
+    dialog[open]{display:flex; flex-direction:column;}
+    dialog::backdrop{background:rgba(2,6,23,0.25)}
+    .modal-head{padding:14px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; background:var(--thead); flex:0 0 auto;}
+    .modal-body{padding:16px; background:#fff; overflow:auto; -webkit-overflow-scrolling:touch; flex:1 1 auto;}
+    .modal-foot{padding:12px 16px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; background:#fbfdff; flex:0 0 auto;}
+    /* 보기 모달 제목(첫째 줄) 파란색 */
+    .modal-body h3{ color:var(--primary); margin:0; }
+    .modal-body article{white-space:pre-wrap; line-height:1.6; overflow-wrap:anywhere;}
+
+    .field{display:flex; flex-direction:column; gap:6px}
+    textarea{width:100%; min-height:160px; background:#fff; color:#0f172a; border:1px solid var(--border); border-radius:10px; padding:10px; outline:none; resize:vertical;}
+    textarea:focus{border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,0.15);}
+    .grid{display:grid; gap:12px}
+    @media (min-width:720px){ .grid.cols-2{grid-template-columns:1fr 1fr} }
+    .empty{text-align:center; color:var(--muted); padding:40px; border-bottom:1px solid var(--border); background:#fff;}
+    /* 저장 경고 배너 */
+    .warn{max-width:1100px;margin:8px auto; padding:10px 14px; border:1px solid #facc15; background:#fef9c3; color:#713f12; border-radius:10px}
+  </style>
+</head>
+<body class="copy-guard">
+  <div id="warn" class="warn" style="display:none">저장소(localStorage)에 접근할 수 없습니다. 브라우저 보안 설정 또는 파일 실행 방식(file://) 때문일 수 있습니다. 로컬 서버(http://localhost...)로 열어주세요.</div>
+
+  <div class="wrap">
+    <header>
+      <div class="brand"><div class="logo" aria-hidden="true"></div></div>
+      <div class="title">
+        <h1>법제동향</h1>
+        <div class="muted" style="font-size:.9rem">인간과 법 포럼</div>
+      </div>
+      <div class="flex">
+        <button class="btn-accent" id="btn-new">+ 새 글</button>
+      </div>
+    </header>
+
+    <section class="panel" aria-label="게시판">
+      <div class="toolbar" role="region" aria-label="도구 모음">
+        <div class="group">
+          <select id="search-field" aria-label="검색 필드">
+            <option value="title">제목</option>
+            <option value="content">내용</option>
+            <option value="author">작성자</option>
+          </select>
+          <input type="text" id="search-input" placeholder="검색어를 입력하세요" aria-label="검색어" />
+          <button id="btn-search">검색</button>
+          <button id="btn-reset">초기화</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="group">
+          <span class="chip" id="post-count">총 0건</span>
+          <select id="page-size" aria-label="페이지 크기">
+            <option value="10">10개</option>
+            <option value="20">20개</option>
+            <option value="50">50개</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrap" role="region" aria-label="목록">
+        <table>
+          <thead>
+            <tr>
+              <th>번호</th><th>제목</th><th>작성자</th><th>날짜</th><th>조회수</th><th>핀</th>
+            </tr>
+          </thead>
+        <tbody id="tbody">
+          <tr><td colspan="6" class="empty">등록된 게시물이 없습니다.</td></tr>
+        </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination" aria-label="페이지네이션"></div>
+    </section>
+  </div>
+
+  <!-- 보기 모달 -->
+  <dialog id="view-modal" aria-labelledby="view-title">
+    <div class="modal-head">
+      <strong id="view-title">글 보기</strong>
+      <span class="spacer"></span>
+      <button id="view-close">닫기</button>
+    </div>
+    <div class="modal-body" id="view-body"></div>
+    <div class="modal-foot">
+      <button id="btn-toggle-pin" class="btn-primary">핀 고정</button>
+      <button id="btn-edit" class="btn-primary">수정</button>
+      <button id="btn-delete" class="btn-danger">삭제</button>
+    </div>
+  </dialog>
+
+  <!-- 작성/수정 모달 -->
+  <dialog id="edit-modal" aria-labelledby="edit-title">
+    <div class="modal-head">
+      <strong id="edit-title">새 글 작성</strong>
+      <span class="spacer"></span>
+      <button id="edit-close">닫기</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid cols-2">
+        <div class="field">
+          <label for="f-title">제목</label>
+          <input id="f-title" type="text" placeholder="제목을 입력하세요" />
+        </div>
+        <div class="field">
+          <label for="f-author">작성자</label>
+          <input id="f-author" type="text" placeholder="홍길동" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-content">내용</label>
+        <textarea id="f-content" placeholder="내용을 입력하세요" maxlength="4000"></textarea>
+        <div class="muted" id="content-counter" aria-live="polite" style="text-align:right; font-size:.85rem">0 / 4000자</div>
+      </div>
+      <div class="grid cols-2">
+        <div class="field">
+          <label for="f-password">비밀번호 (수정/삭제용)</label>
+          <input id="f-password" type="password" placeholder="4~20자" />
+        </div>
+        <div class="field">
+          <label for="f-tags">태그 (쉼표 , 로 구분)</label>
+          <input id="f-tags" type="text" placeholder="공지, 안내" />
+        </div>
+      </div>
+      <div class="field" style="margin-top:6px">
+        <label><input id="f-pinned" type="checkbox" /> 상단 고정</label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="btn-save" class="btn-accent">저장</button>
+    </div>
+  </dialog>
+
+  <!-- 삭제 비밀번호 모달 -->
+  <dialog id="pw-modal" aria-labelledby="pw-title">
+    <div class="modal-head">
+      <strong id="pw-title">비밀번호 확인</strong>
+      <span class="spacer"></span>
+      <button id="pw-close">닫기</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="pw-input">비밀번호</label>
+        <input id="pw-input" type="password" />
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="pw-ok" class="btn-primary">확인</button>
+    </div>
+  </dialog>
+
+  <script>
+  // 1) 파일별 고정 키: meta에서 읽기(없으면 파일명 기반)
+  const META_KEY = (document.querySelector('meta[name="board-key"]')?.content || (location.pathname.split("/").pop() || "root")).replace(/[^\w]+/g,"_");
+  const APP_NS = "precision_board_" + META_KEY;
+  const STORAGE_KEY = APP_NS + "_posts_v1";
+  const ID_KEY = APP_NS + "_last_id";
+
+  // 2) localStorage 가용성 점검
+  function storageAvailable(){
+    try{
+      const k="__test__"+Math.random(); localStorage.setItem(k,"1"); localStorage.removeItem(k); return true;
+    }catch(e){ return false; }
+  }
+  const STORAGE_OK = storageAvailable();
+  if(!STORAGE_OK){ document.getElementById("warn").style.display = ""; }
+
+  const state = { posts: [], search: { field: "title", q: "" }, page: 1, size: 10, selection: null };
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+  function load() {
+    if(!STORAGE_OK){ state.posts=[]; return; }
+    try { state.posts = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+    catch { state.posts = []; }
+    if (!localStorage.getItem(ID_KEY)) localStorage.setItem(ID_KEY, "0");
+    ensureIndexes();
+  }
+  function save() {
+    if(!STORAGE_OK) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.posts));
+  }
+  function nextId() {
+    if(!STORAGE_OK){ return Date.now(); } // 비상용(비영구)
+    const id = parseInt(localStorage.getItem(ID_KEY) || "0", 10) + 1;
+    localStorage.setItem(ID_KEY, String(id));
+    return id;
+  }
+  function formatDateOnly(ts) {
+    const d = new Date(ts);
+    const p = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  }
+
+  function ensureIndexes(){
+    let changed=false;
+    state.posts.forEach((p,i)=>{
+      if (typeof p.sortIndex !== "number") { p.sortIndex = i; changed=true; }
+      if (typeof p.pinned !== "boolean") { p.pinned = false; changed=true; }
+      if (p.pinned && typeof p.pinIndex !== "number") { p.pinIndex = i; changed=true; }
+    });
+    if (changed) save();
+  }
+  function minSortIndex(){ const unp=state.posts.filter(p=>!p.pinned); return unp.length ? Math.min(...unp.map(p=>p.sortIndex ?? 0)) : 0; }
+  function minPinIndex(){ const pinned=state.posts.filter(p=>p.pinned); return pinned.length ? Math.min(...pinned.map(p=>p.pinIndex ?? 0)) : 0; }
+
+  function seedIfEmpty() {
+    if (state.posts.length) return;
+    const now = Date.now();
+    const demo = [
+      { title:"환영합니다 🎉", content:"수동 정렬 + 상단 고정핀 데모입니다.\n본문은 최대 4,000자까지 가능합니다.", author:"관리자", password:"1234", tags:["공지"], views:42, createdAt: now-86400000*2, updatedAt: now-86400000*2, pinned:true },
+      { title:"이용 안내", content:"이 페이지(파일) 전용 저장소를 사용합니다.\n다른 파일과 공유되지 않습니다.", author:"시스템", password:"1234", tags:["안내"], views:17, createdAt: now-86400000, updatedAt: now-86400000, pinned:false },
+      { title:"드래그 정렬", content:"제목 왼쪽 ≡ 핸들을 잡고 순서를 바꿔보세요! ✨", author:"운영팀", password:"1234", tags:["TIP"], views:7, createdAt: now-3600000*5, updatedAt: now-3600000*5, pinned:false }
+    ];
+    state.posts = demo.map((d,i)=>({ id: nextId(), ...d, sortIndex: i, pinIndex: d.pinned ? i : undefined }));
+    save();
+  }
+
+  function applySearch(posts) {
+    const {field, q} = state.search;
+    const keyword = q.trim().toLowerCase();
+    if (!keyword) return posts;
+    return posts.filter(p=>{
+      const text = field==="title" ? p.title : field==="content" ? p.content : p.author;
+      return (text || "").toLowerCase().includes(keyword);
+    });
+  }
+  function applyPinnedManualSort(posts) {
+    return [...posts].sort((a,b)=>{
+      const ap = a.pinned ? 1 : 0, bp = b.pinned ? 1 : 0;
+      if (ap !== bp) return bp - ap;
+      if (ap === 1) {
+        const ai = (typeof a.pinIndex==="number") ? a.pinIndex : 1e9;
+        const bi = (typeof b.pinIndex==="number") ? b.pinIndex : 1e9;
+        return ai - bi;
+      }
+      const as = (typeof a.sortIndex==="number") ? a.sortIndex : 1e9;
+      const bs = (typeof b.sortIndex==="number") ? b.sortIndex : 1e9;
+      return as - bs;
+    });
+  }
+  function paginate(posts) {
+    const total = posts.length;
+    const pages = Math.max(1, Math.ceil(total / state.size));
+    if (state.page>pages) state.page = pages;
+    const start = (state.page-1)*state.size;
+    const slice = posts.slice(start, start+state.size);
+    return {slice, total, pages};
+  }
+  function getDisplayNumber(id){
+    const filtered = applySearch(state.posts);
+    const sorted = applyPinnedManualSort(filtered);
+    const total = sorted.length;
+    const idx = sorted.findIndex(p=>p.id===id);
+    return idx >= 0 ? (total - idx) : null;
+  }
+
+  function render() {
+    const filtered = applySearch(state.posts);
+    const sorted = applyPinnedManualSort(filtered);
+    const {slice, total, pages} = paginate(sorted);
+    const numberMap = new Map(); sorted.forEach((p, i) => numberMap.set(p.id, total - i));
+
+    $("#post-count").textContent = `총 ${total}건`;
+
+    const tbody = $("#tbody");
+    tbody.innerHTML = "";
+    if (slice.length===0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6; td.className = "empty";
+      td.textContent = "검색 결과가 없습니다.";
+      tr.appendChild(td); tbody.appendChild(tr);
+    } else {
+      slice.forEach(p=>{
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-id", String(p.id));
+        tr.innerHTML = `
+          <td class="muted">${numberMap.get(p.id)}</td>
+          <td>
+            <div class="title-cell">
+              <span class="drag-handle" draggable="true" role="button" aria-label="행 이동" title="드래그하여 순서 변경">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="7" cy="7" r="1.5"></circle>
+                  <circle cx="7" cy="12" r="1.5"></circle>
+                  <circle cx="7" cy="17" r="1.5"></circle>
+                  <circle cx="12" cy="7" r="1.5"></circle>
+                  <circle cx="12" cy="12" r="1.5"></circle>
+                  <circle cx="12" cy="17" r="1.5"></circle>
+                </svg>
+              </span>
+              ${p.pinned ? `<span class="badge-pin">고정</span>` : ""}
+              ${p.tags?.[0] ? `<span class="badge" title="${(p.tags||[]).join(', ')}">${p.tags[0]}</span>` : ""}
+              <a href="#" data-id="${p.id}" class="link-view">${escapeHtml(p.title)}</a>
+            </div>
+          </td>
+          <td>${escapeHtml(p.author||"-")}</td>
+          <td class="muted">${formatDateOnly(p.createdAt)}</td>
+          <td class="muted">${p.views||0}</td>
+          <td>
+            <button class="pin-btn ${p.pinned ? "pinned":""}" data-id="${p.id}" title="${p.pinned ? "핀 해제":"핀 고정"}" aria-label="${p.pinned ? "핀 해제":"핀 고정"}">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 3l7 7-4 1-3 6-3-3-6 3 3-6-3-3 6-3 1-4z" /></svg>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    const pag = $("#pagination");
+    pag.innerHTML="";
+    const makeBtn = (label, page, disabled=false, current=false)=>{
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (disabled) b.disabled = true;
+      if (current) b.setAttribute("aria-current","page");
+      b.addEventListener("click", ()=>{ state.page = page; render(); });
+      return b;
+    };
+    const cur = state.page;
+    pag.appendChild(makeBtn("«", 1, cur===1));
+    pag.appendChild(makeBtn("‹", Math.max(1, cur-1), cur===1));
+    const range = calcPageRange(cur, pages, 5);
+    range.forEach(p=> pag.appendChild(makeBtn(String(p), p, false, p===cur)));
+    pag.appendChild(makeBtn("›", Math.min(pages, cur+1), cur===pages));
+    pag.appendChild(makeBtn("»", pages, cur===pages));
+
+    $$(".link-view", tbody).forEach(a=>{
+      a.addEventListener("click", (e)=>{
+        e.preventDefault();
+        const id = parseInt(a.getAttribute("data-id"));
+        openView(id);
+      });
+    });
+    $$(".pin-btn", tbody).forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = parseInt(btn.getAttribute("data-id"));
+        togglePin(id);
+      });
+    });
+
+    bindRowDnD(tbody, sorted);
+  }
+
+  function calcPageRange(current, total, span=5){
+    const half = Math.floor(span/2);
+    let start = Math.max(1, current - half);
+    let end = Math.min(total, start + span - 1);
+    start = Math.max(1, end - span + 1);
+    const arr=[];
+    for (let i=start;i<=end;i++) arr.push(i);
+    return arr;
+  }
+  function escapeHtml(s=""){ return s.replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+
+  // 본문 글자수 카운터 (4,000자)
+  function updateContentCounter() {
+    const ta = $("#f-content");
+    if (!ta) return;
+    if (ta.value.length > 4000) ta.value = ta.value.slice(0, 4000);
+    const counter = $("#content-counter");
+    if (counter) {
+      counter.textContent = `${ta.value.length} / 4000자`;
+      counter.style.color = ta.value.length > 3800 ? "#dc2626" : "";
+    }
+  }
+
+  function togglePin(id){
+    const post = state.posts.find(p=>p.id===id);
+    if (!post) return;
+    if (post.pinned) {
+      post.pinned = false; post.pinIndex = undefined; post.sortIndex = minSortIndex() - 1;
+    } else {
+      post.pinned = true; post.pinIndex = minPinIndex() - 1;
+    }
+    save();
+    if ($("#view-modal").open && state.selection===id) updateViewPinButton(post);
+    render();
+  }
+
+  function openView(id){
+    const post = state.posts.find(p=>p.id===id);
+    if (!post) return;
+    state.selection = id;
+    post.views = (post.views||0)+1; save();
+
+    const displayNo = getDisplayNumber(id);
+    const body = $("#view-body");
+    body.innerHTML = `
+      <div class="grid">
+        <div class="flex" style="justify-content:space-between">
+          <div class="flex" style="gap:12px">
+            <h3 style="margin:0">${escapeHtml(post.title)}</h3>
+            ${post.pinned ? `<span class="chip" style="background:#ffedd5; border-color:#fed7aa; color:#92400e">고정</span>` : ""}
+            ${post.tags?.length ? post.tags.map(t=>`<span class="chip">${escapeHtml(t)}</span>`).join("") : ""}
+          </div>
+          <div class="muted">${displayNo!=null ? `No. ${displayNo}` : `#${post.id}`}</div>
+        </div>
+        <div class="muted">작성자: ${escapeHtml(post.author||"-")} · 작성일: ${formatDateOnly(post.createdAt)} ${post.updatedAt && post.updatedAt!==post.createdAt ? `· 수정: ${formatDateOnly(post.updatedAt)}` : ""} · 조회수: ${post.views||0}</div>
+        <article>${escapeHtml(post.content||"")}</article>
+      </div>
+    `;
+    $("#view-modal").showModal();
+    updateViewPinButton(post);
+    render();
+  }
+  function updateViewPinButton(post){
+    const btn = $("#btn-toggle-pin");
+    if (!btn) return;
+    btn.textContent = post.pinned ? "핀 해제" : "핀 고정";
+    btn.onclick = ()=> togglePin(post.id);
+  }
+
+  function openEdit(id=null){
+    const isEdit = id!=null;
+    $("#edit-title").textContent = isEdit ? "글 수정" : "새 글 작성";
+    const p = isEdit ? state.posts.find(pp=>pp.id===id) : null;
+    $("#f-title").value = isEdit ? (p?.title || "") : "";
+    $("#f-author").value = isEdit ? (p?.author || "") : "";
+    $("#f-content").value = isEdit ? (p?.content || "") : "";
+    $("#f-password").value = "";
+    $("#f-tags").value = isEdit ? (p?.tags?.join(", ") || "") : "";
+    $("#f-pinned").checked = isEdit ? !!p?.pinned : false;
+    $("#edit-modal").showModal();
+    updateContentCounter();
+    $("#f-content").oninput = updateContentCounter;
+  }
+
+  function validateForm() {
+    const title = $("#f-title").value.trim();
+    const author = $("#f-author").value.trim();
+    const content = $("#f-content").value;
+    const password = $("#f-password").value;
+    if (!title) return { ok:false, msg:"제목을 입력하세요." };
+    if (!author) return { ok:false, msg:"작성자를 입력하세요." };
+    if (!content.trim()) return { ok:false, msg:"내용을 입력하세요." };
+    if (content.length > 4000) return { ok:false, msg:"내용은 4,000자 이내로 입력하세요." };
+    if (password && (password.length<4 || password.length>20)) return { ok:false, msg:"비밀번호는 4~20자로 입력하세요." };
+    return { ok:true };
+  }
+
+  function saveForm(){
+    const v = validateForm(); if (!v.ok) { alert(v.msg); return; }
+    const title = $("#f-title").value.trim();
+    const author = $("#f-author").value.trim();
+    const content = $("#f-content").value;
+    const pwd = $("#f-password").value;
+    const tags = $("#f-tags").value.split(",").map(s=>s.trim()).filter(Boolean);
+    const wantPinned = $("#f-pinned").checked;
+
+    const isEdit = state.selection!=null && state.posts.some(p=>p.id===state.selection);
+    if (isEdit) {
+      const post = state.posts.find(p=>p.id===state.selection);
+      if (post.password && post.password.length>0 && pwd!==post.password) { alert("수정하려면 기존 비밀번호를 정확히 입력해야 합니다."); return; }
+      post.title = title; post.author = author; post.content = content; post.tags = tags;
+      if (pwd) post.password = pwd;
+      if (wantPinned && !post.pinned) { post.pinned = true; post.pinIndex = minPinIndex() - 1; }
+      else if (!wantPinned && post.pinned) { post.pinned = false; post.pinIndex = undefined; post.sortIndex = minSortIndex() - 1; }
+      post.updatedAt = Date.now(); save(); $("#edit-modal").close(); openView(post.id); render(); return;
+    } else {
+      const newPost = { id: nextId(), title, author, content, password: pwd || "", tags, pinned: wantPinned, views: 0, createdAt: Date.now(), updatedAt: Date.now() };
+      if (wantPinned) { newPost.pinIndex = minPinIndex() - 1; newPost.sortIndex = undefined; }
+      else { newPost.sortIndex = minSortIndex() - 1; newPost.pinIndex = undefined; }
+      state.posts.unshift(newPost); save(); $("#edit-modal").close(); state.page = 1; render(); openView(newPost.id);
+    }
+  }
+
+  function requestDelete(id){
+    const post = state.posts.find(p=>p.id===id); if (!post) return;
+    if (!post.password) {
+      if (confirm("이 글에는 비밀번호가 없습니다. 삭제하시겠습니까?")) { state.posts = state.posts.filter(p=>p.id!==id); save(); $("#view-modal").close(); render(); }
+      return;
+    }
+    openPwModal(post, ()=>{ state.posts = state.posts.filter(p=>p.id!==id); save(); $("#view-modal").close(); render(); });
+  }
+
+  function openPwModal(post, onSuccess){
+    $("#pw-input").value = ""; $("#pw-modal").showModal();
+    const ok = ()=>{ const input = $("#pw-input").value; if (input===post.password) { $("#pw-modal").close(); onSuccess(); } else { alert("비밀번호가 일치하지 않습니다."); } };
+    $("#pw-ok").onclick = ok; $("#pw-input").onkeydown = (e)=>{ if (e.key==="Enter") ok(); };
+    $("#pw-close").onclick = ()=>$("#pw-modal").close();
+  }
+
+  // 드래그 앤 드롭 (같은 그룹 내에서만, 드롭 위치 위/아래 반영)
+  function bindRowDnD(tbody, sortedFull){
+    let draggingId = null;
+    let overTr = null;
+
+    function clearOver(){ if (overTr) { overTr.classList.remove("drag-over"); overTr = null; } }
+
+    // Drop target: 현재 페이지 DOM 행 기준으로 처리
+    $$("tr", tbody).forEach(tr=>{
+      const idAttr = tr.getAttribute("data-id");
+      if (!idAttr) return;
+
+      tr.addEventListener("dragenter", ()=>{
+        clearOver(); overTr = tr; tr.classList.add("drag-over");
+      });
+      tr.addEventListener("dragover", (e)=>{
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      });
+      tr.addEventListener("dragleave", ()=>{ tr.classList.remove("drag-over"); });
+
+      tr.addEventListener("drop", (e)=>{
+        e.preventDefault();
+        tr.classList.remove("drag-over");
+        const targetId = parseInt(tr.getAttribute("data-id"));
+        if (!draggingId || !targetId || draggingId===targetId) { draggingId = null; return; }
+
+        const dragPost = state.posts.find(p=>p.id===draggingId);
+        const targetPost = state.posts.find(p=>p.id===targetId);
+        if (!dragPost || !targetPost) { draggingId=null; return; }
+
+        // 서로 다른 그룹이면 무시 (핀 이동은 버튼으로)
+        if (dragPost.pinned !== targetPost.pinned) { draggingId=null; return; }
+
+        // 현재 페이지 DOM 순서에서 같은 그룹만 추출
+        const domRows = Array.from(tbody.querySelectorAll("tr[data-id]"));
+        const groupIds = domRows
+          .map(r => parseInt(r.getAttribute("data-id")))
+          .filter(id => state.posts.find(p=>p.id===id)?.pinned === dragPost.pinned);
+
+        const from = groupIds.indexOf(draggingId);
+        const to = groupIds.indexOf(targetId);
+        if (from<0 || to<0) { draggingId = null; return; }
+
+        // 드롭 위치가 행의 아래 절반이면 target 뒤로 삽입
+        const rect = tr.getBoundingClientRect();
+        const after = e.clientY > rect.top + rect.height/2;
+
+        // 재배치
+        groupIds.splice(from,1);
+        let insertIndex = to;
+        if (after) insertIndex = to + 1;
+        // 원래 위치가 앞이고 제거로 인해 인덱스가 당겨졌다면 보정
+        if (from < insertIndex) insertIndex--;
+
+        groupIds.splice(insertIndex, 0, draggingId);
+
+        // 새 순서 인덱스 반영
+        if (dragPost.pinned) {
+          groupIds.forEach((pid,i)=>{ const post = state.posts.find(p=>p.id===pid); if (post) post.pinIndex = i; });
+        } else {
+          groupIds.forEach((pid,i)=>{ const post = state.posts.find(p=>p.id===pid); if (post) post.sortIndex = i; });
+        }
+        save();
+        draggingId = null;
+        render();
+      });
+    });
+
+    // 핸들에서만 드래그 시작
+    $$(".drag-handle", tbody).forEach(handle=>{
+      const row = handle.closest("tr");
+      const id = row ? parseInt(row.getAttribute("data-id")) : null;
+      if (!id) return;
+
+      handle.addEventListener("dragstart", (e)=>{
+        draggingId = id;
+        if (e.dataTransfer) {
+          e.dataTransfer.setData("text/plain", String(id));
+          e.dataTransfer.effectAllowed = "move";
+        }
+      });
+      handle.addEventListener("dragend", ()=>{
+        clearOver();
+        draggingId = null;
+      });
+    });
+  }
+
+  function bindEvents(){
+    // 검색/페이지 이벤트
+    $("#btn-search").addEventListener("click", ()=>{ state.search.field=$("#search-field").value; state.search.q=$("#search-input").value; state.page=1; render(); });
+    $("#btn-reset").addEventListener("click", ()=>{ $("#search-input").value=""; state.search.q=""; $("#search-field").value="title"; state.search.field="title"; state.page=1; render(); });
+    $("#search-input").addEventListener("keydown", (e)=>{ if (e.key==="Enter") $("#btn-search").click(); });
+    $("#page-size").addEventListener("change", ()=>{ state.size=parseInt($("#page-size").value,10); state.page=1; render(); });
+
+    // 글 작성/보기/삭제
+    $("#btn-new").addEventListener("click", ()=>{ state.selection=null; openEdit(null); });
+    $("#view-close").addEventListener("click", ()=>$("#view-modal").close());
+    $("#btn-toggle-pin").addEventListener("click", ()=>{ if (state.selection!=null) togglePin(state.selection); });
+    $("#btn-edit").addEventListener("click", ()=>{ const id = state.selection; if (id==null) return; const post = state.posts.find(p=>p.id===id); if (!post) return; $("#view-modal").close(); openEdit(id); });
+    $("#btn-delete").addEventListener("click", ()=>{ const id = state.selection; if (id==null) return; requestDelete(id); });
+
+    // 작성 모달
+    $("#edit-close").addEventListener("click", ()=>$("#edit-modal").close());
+    $("#btn-save").addEventListener("click", saveForm);
+
+    // 복사 방지 억제 핸들러들 (입력/텍스트영역은 예외)
+    document.addEventListener("contextmenu", (e)=>{
+      const t = e.target; if (t && (t.closest("input, textarea"))) return;
+      e.preventDefault();
+    });
+    document.addEventListener("copy", (e)=>{
+      const t = e.target; if (t && (t.closest("input, textarea"))) return;
+      e.preventDefault(); alert("복사가 비활성화되었습니다.");
+    });
+    document.addEventListener("cut", (e)=>{
+      const t = e.target; if (t && (t.closest("input, textarea"))) return;
+      e.preventDefault();
+    });
+    document.addEventListener("dragstart", (e)=>{
+      const t = e.target;
+      if (t && (t.closest(".drag-handle"))) return; // 정렬용 핸들은 허용
+      e.preventDefault();
+    });
+    document.addEventListener("keydown", (e)=>{
+      const k = e.key.toLowerCase();
+      const inEditable = e.target && (e.target.closest("input, textarea, [contenteditable='true']"));
+      if (inEditable) return; // 입력 중에는 차단하지 않음
+      if (e.ctrlKey && ["c","x","a","s","p"].includes(k)) {
+        e.preventDefault();
+      }
+    });
+  }
+
+  load();
+  seedIfEmpty();
+  bindEvents();
+  render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>링크 게시판 (서버 JSON 자동 백업)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{ --bg:#f6f7fb; --panel:#fff; --text:#0f172a; --muted:#64748b; --border:#e5e7eb; --primary:#2563eb; --primary-ink:#fff; --danger:#ef4444; --accent:#0ea5e9; }
+    html,body{height:100%}
+    body{margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Pretendard,sans-serif; line-height:1.45;}
+    .container{width:600px; margin:24px 16px;}
+    .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:0 6px 24px rgba(15,23,42,.04);}
+    .header{position:relative; display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; padding:12px 14px; border-bottom:1px solid var(--border);}
+    .title{grid-column:2/3; font-weight:800; font-size:18px; text-align:center; margin:0;}
+    .actions{grid-column:3/4; justify-self:end; display:flex; gap:8px; align-items:center;}
+    .btn{appearance:none; border:1px solid var(--border); background:#fff; color:var(--text); padding:8px 10px; border-radius:10px; font-weight:700; cursor:pointer; font-size:13px;}
+    .btn.primary{background:var(--primary); color:var(--primary-ink); border-color:var(--primary);}
+    .btn.danger{background:var(--danger); color:#fff; border-color:var(--danger);}
+    .btn.ghost{background:#fff;}
+    .btn:disabled{opacity:.6; cursor:not-allowed;}
+    .muted{color:var(--muted); font-size:12px;}
+    .section{padding:12px 14px;}
+    .bar{display:flex; align-items:center; gap:8px; margin:8px 0;}
+    .bar input[type="text"]{flex:1;}
+    .table-wrap{overflow:auto; border-top:1px solid var(--border);}
+    table{width:100%; border-collapse:separate; border-spacing:0;}
+    thead th{position:sticky; top:0; background:#fafafa; border-bottom:1px solid var(--border); text-align:left; padding:10px 8px; font-size:13px; color:#374151;}
+    tbody td{border-bottom:1px solid var(--border); padding:10px 8px; font-size:14px; vertical-align:middle;}
+    tbody tr:hover{background:#fbfdff;}
+    tbody tr.dragging{opacity:.6; outline:2px dashed var(--accent);}
+    .td-num{width:54px; text-align:center;}
+    .td-actions{width:120px; text-align:right;}
+    .title-link a{color:#0f172a; text-decoration:none;}
+    .title-link a:hover{text-decoration:underline;}
+    /* 모달 */
+    .backdrop{position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:50;}
+    .modal{background:#fff; width:min(560px, 92vw); border-radius:12px; border:1px solid var(--border); display:flex; flex-direction:column; max-height:90vh;}
+    .modal .head{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px 14px; border-bottom:1px solid var(--border);}
+    .modal .body{padding:14px; flex:1 1 auto; overflow:auto; min-height:0; -webkit-overflow-scrolling:touch;}
+    .modal .foot{display:flex; justify-content:flex-end; gap:8px; padding:12px 14px; border-top:1px solid var(--border);}
+    .field{display:flex; flex-direction:column; gap:6px; margin-bottom:10px;}
+    .field label{font-size:12px; color:#334155;}
+    input[type="text"], input[type="url"]{ width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff; }
+    @media (max-width:640px){ .container{width:100%; margin:12px 8px;} .header{grid-template-columns: 1fr auto 1fr;} }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="card" aria-label="링크 게시판">
+      <div class="header">
+        <h1 class="title">링크 게시판</h1>
+        <div class="actions">
+          <button class="btn primary" id="open-add">추가</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="bar">
+          <input type="text" id="search-input" placeholder="검색(제목/URL)">
+          <span class="muted">총 <span id="count">0</span>건</span>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table aria-label="링크 목록">
+          <thead>
+            <tr>
+              <th class="td-num">번호</th>
+              <th>제목</th>
+              <th class="td-actions">관리</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- 모달: 제목/URL 입력 -->
+  <div class="backdrop" id="add-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="add-title">
+      <div class="head">
+        <strong id="add-title">새 링크 추가</strong>
+        <button class="btn" id="add-close" type="button">닫기</button>
+      </div>
+      <div class="body">
+        <div class="field">
+          <label for="title-input">제목</label>
+          <input type="text" id="title-input" placeholder="예: 개발 문서 모음">
+        </div>
+        <div class="field">
+          <label for="url-input">링크(URL)</label>
+          <input type="url" id="url-input" placeholder="예: https://example.com">
+        </div>
+        <div class="muted" id="msg"></div>
+      </div>
+      <div class="foot">
+        <button class="btn" id="add-cancel" type="button">취소</button>
+        <button class="btn primary" id="add-save" type="button">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 서버 API 설정 =====
+    const API_BASE = 'api.php'; // index.html과 같은 폴더
+
+    // ===== 상태 =====
+    let items = []; // 서버에서 받아오는 {id, title, url, created_at, order}
+
+    // ===== 유틸 =====
+    const qs = s => document.querySelector(s);
+    const qsa = s => Array.from(document.querySelectorAll(s));
+    function escapeHtml(s){ return (s??'').toString().replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    async function http(url, opt={}) {
+      const r = await fetch(url, opt);
+      let d = null; try { d = await r.json(); } catch {}
+      if (!r.ok) throw new Error((d && (d.error||d.detail)) || `HTTP ${r.status}`);
+      return d;
+    }
+    async function apiList(){ return http(`${API_BASE}?action=list`); }
+    async function apiAdd({title,url,admin_password}) {
+      return http(`${API_BASE}?action=add`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, url, admin_password }) });
+    }
+    async function apiDelete({id,admin_password}) {
+      return http(`${API_BASE}?action=delete`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id, admin_password }) });
+    }
+    async function apiReorder({order,admin_password}) {
+      return http(`${API_BASE}?action=reorder`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ order, admin_password }) });
+    }
+
+    // ===== 렌더 =====
+    function render() {
+      const tbody = qs('#tbody');
+      const filter = qs('#search-input').value.trim().toLowerCase();
+      tbody.innerHTML = '';
+
+      const filtered = items.filter(it => {
+        if (!filter) return true;
+        return (it.title||'').toLowerCase().includes(filter) || (it.url||'').toLowerCase().includes(filter);
+      });
+
+      const total = filtered.length;
+      qs('#count').textContent = String(total);
+      const startIndex = total;
+
+      filtered.forEach((it, idx) => {
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-id', it.id);
+        tr.setAttribute('draggable', 'true');
+        tr.innerHTML = `
+          <td class="td-num">${startIndex - idx}</td>
+          <td class="title-link"><a href="${escapeHtml(it.url)}" target="_blank" rel="noopener">${escapeHtml(it.title||'(제목없음)')}</a></td>
+          <td class="td-actions">
+            <button class="btn" data-act="up">↑</button>
+            <button class="btn" data-act="down">↓</button>
+            <button class="btn danger" data-act="del">삭제</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+      enableRowDnD();
+    }
+
+    // ===== DnD =====
+    function enableRowDnD() {
+      const rows = qsa('#tbody tr[data-id]');
+      let dragSrc = null;
+      rows.forEach(row => {
+        row.addEventListener('dragstart', e => {
+          dragSrc = row; row.classList.add('dragging');
+          try { e.dataTransfer.setData('text/plain', row.dataset.id); } catch {}
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        row.addEventListener('dragend', () => { row.classList.remove('dragging'); dragSrc = null; });
+        row.addEventListener('dragover', e => {
+          e.preventDefault();
+          const target = row, tb = target.parentElement, rect = target.getBoundingClientRect();
+          const after = (e.clientY - rect.top) > rect.height/2;
+          if (dragSrc && dragSrc !== target) {
+            if (after) tb.insertBefore(dragSrc, target.nextSibling); else tb.insertBefore(dragSrc, target);
+          }
+        });
+        row.addEventListener('drop', async e => {
+          e.preventDefault();
+          const ids = qsa('#tbody tr[data-id]').map(tr => Number(tr.dataset.id));
+          try {
+            const pass = prompt('관리자 암호를 입력하세요(순서 변경 저장)'); if (pass === null) return;
+            await apiReorder({ order: ids, admin_password: pass });
+            await loadAndRender();
+          } catch (err) { alert('순서 저장 실패: ' + err.message); }
+        });
+      });
+    }
+
+    // ===== 동작 =====
+    async function loadAndRender() {
+      const d = await apiList();
+      items = (d.items || []).slice().sort((a,b)=> (a.order||0) - (b.order||0) );
+      render();
+    }
+
+    function openModal() {
+      qs('#title-input').value = '';
+      qs('#url-input').value = '';
+      qs('#msg').textContent = '';
+      qs('#add-backdrop').style.display = 'flex';
+      setTimeout(()=> qs('#title-input').focus(), 0);
+    }
+    function closeModal() { qs('#add-backdrop').style.display = 'none'; }
+
+    // ===== 이벤트 =====
+    document.addEventListener('DOMContentLoaded', async () => {
+      try { await loadAndRender(); }
+      catch (e) { alert('목록을 불러오지 못했습니다: ' + e.message); }
+
+      // 추가 열기/닫기
+      qs('#open-add').addEventListener('click', openModal);
+      qs('#add-close').addEventListener('click', closeModal);
+      qs'#add-cancel').addEventListener('click', closeModal);
+
+      // 저장
+      qs('#add-save').addEventListener('click', async () => {
+        const title = qs('#title-input').value.trim();
+        const url = qs('#url-input').value.trim();
+        const msg = qs('#msg');
+        if (!title || !url) { msg.textContent = '제목과 URL을 모두 입력하세요.'; return; }
+        try { new URL(url); } catch { msg.textContent = '올바른 URL을 입력하세요.'; return; }
+        const pass = prompt('관리자 암호를 입력하세요'); if (pass === null) return;
+        try {
+          await apiAdd({ title, url, admin_password: pass });
+          closeModal();
+          await loadAndRender();
+        } catch (e) {
+          msg.textContent = '저장 실패: ' + e.message;
+        }
+      });
+
+      // 엔터키
+      qs('#title-input').addEventListener('keydown', e => { if (e.key === 'Enter') qs('#url-input').focus(); });
+      qs('#url-input').addEventListener('keydown', e => { if (e.key === 'Enter') qs('#add-save').click(); });
+
+      // 검색
+      qs('#search-input').addEventListener('input', render);
+
+      // 삭제/위아래 이동(서버 반영)
+      qs('#tbody').addEventListener('click', async (ev) => {
+        const btn = ev.target.closest('button[data-act]'); if (!btn) return;
+        const tr = ev.target.closest('tr[data-id]'); const id = Number(tr?.dataset.id);
+        const act = btn.dataset.act;
+        if (act === 'del') {
+          const pass = prompt('관리자 암호를 입력하세요'); if (pass === null) return;
+          if (!confirm('정말 삭제하시겠습니까?')) return;
+          try { await apiDelete({ id, admin_password: pass }); await loadAndRender(); }
+          catch (e) { alert('삭제 실패: ' + e.message); }
+        } else if (act === 'up' || act === 'down') {
+          const idx = items.findIndex(it => it.id === id);
+          if (idx < 0) return;
+          const swap = act === 'up' ? idx - 1 : idx + 1;
+          if (swap < 0 || swap >= items.length) return;
+          // 로컬 재배열 → 서버 저장
+          const reordered = items.slice();
+          [reordered[idx], reordered[swap]] = [reordered[swap], reordered[idx]];
+          const ids = reordered.map(it => it.id);
+          try {
+            const pass = prompt('관리자 암호를 입력하세요(순서 변경 저장)'); if (pass === null) return;
+            await apiReorder({ order: ids, admin_password: pass });
+            await loadAndRender();
+          } catch (e) { alert('순서 저장 실패: ' + e.message); }
+        }
+      });
+
+      // 모달 ESC/바깥클릭 닫기
+      window.addEventListener('keydown', e => { if (e.key === 'Escape' && qs('#add-backdrop').style.display === 'flex') closeModal(); });
+      qs('#add-backdrop').addEventListener('click', e => { if (e.target === qs('#add-backdrop')) closeModal(); });
+    });
+  </script>
+</body>
+</html>
