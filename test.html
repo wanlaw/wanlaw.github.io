@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>홈페이지</title>
+    <style>
+        /* 화면 전체 여백 제거 및 구조 고정 */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+        }
+        /* 왼쪽 메뉴 프레임 (기존 cols="165" 역할) */
+        .sidebar {
+            width: 165px;
+            height: 100%;
+            border: none;
+        }
+        /* 오른쪽 본문 프레임 (기존 cols="*" 역할) */
+        .main-content {
+            flex: 1;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 왼쪽 프레임: 스크롤 없음 -->
+    <iframe class="sidebar" name="frame1" src="humanlaw/wan1.html" scrolling="no"></iframe>
+    
+    <!-- 오른쪽 프레임: 스크롤 자동 -->
+    <iframe class="main-content" name="frame2" src="humanlaw/wan2.html" scrolling="auto"></iframe>
+
+</body>
+</html>
