@@ -1,145 +1,172 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>인간과 법 포럼</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인간과 법 포럼 - 메뉴</title>
 
-<style type="text/css">
-    td { font-size:10pt; font-family:Arial, 굴림체; color:#000000 }
-    a:link { text-decoration:none; color:#8000FF }
-    a:visited { text-decoration:none; color:#8000FF }
-    a:hover { text-decoration:none; color:#FF8000 }
-    a:active { text-decoration:none; color:#FF0000 }
+<style>
+body{
+    margin:0;
+    padding:0;
+    background:#B6D994;
+    font-family:"Malgun Gothic","맑은 고딕",Arial,sans-serif;
+    user-select:none;
+}
+
+/* 상단 로고 */
+.logo{
+    text-align:center;
+    padding:10px 0;
+}
+
+.logo img{
+    width:110px;
+    height:40px;
+    cursor:pointer;
+}
+
+/* 시계 */
+.clock{
+    text-align:center;
+    font-size:12px;
+    padding:5px 0;
+    color:#000;
+}
+
+/* 메뉴 영역 */
+.menu{
+    padding:10px;
+}
+
+.menu a{
+    display:block;
+    padding:6px 8px;
+    margin:2px 0;
+    color:#0000aa;
+    text-decoration:none;
+    font-size:13px;
+}
+
+.menu a:hover{
+    color:#ff8000;
+    background:rgba(255,255,255,0.3);
+}
+
+.section-title{
+    margin-top:10px;
+    font-weight:bold;
+    color:#000;
+    font-size:13px;
+}
 </style>
+
+<script>
+function updateClock(){
+    const now = new Date();
+    let h = now.getHours();
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+
+    h = h % 12;
+    h = h ? h : 12;
+
+    document.getElementById("clock").textContent =
+        `${h}:${m}:${s} ${ampm}`;
+
+    setTimeout(updateClock,1000);
+}
+
+function go(page){
+    parent.frame2.location.href = page;
+}
+</script>
+
 </head>
 
-<body bgcolor="#B6D994" oncontextmenu="return false" ondragstart="return false" onselectstart="return false;">
+<body onload="updateClock()">
 
-<br>
-<center>
+<!-- 로고 -->
+<div class="logo">
+    <a onclick="go('wan2.html')">
+        <img src="../images/human.png" alt="인간과 법 포럼">
+    </a>
+</div>
 
-<!-- 상위 폴더(../) 제거, 이미지 폴더가 같은 공간에 있다고 가정 -->
-<a href="wan2.html"><img src="images/human.png" width="110" height="40" border="0" alt="인간과 법 포럼"></a>
+<!-- 시계 -->
+<div class="clock" id="clock"></div>
 
-<!-- 테이블 문법 교정 (tr 태그 명확히 삽입) 및 parent.frame2 제거 -->
-<table border="0" width="190" height="390">
-    <tr>
-        <td height="20">
-            <p style="line-height:100%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="welcome.htm"><font face="HY동녘M" color="blue">환 영 사</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:100%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="jw.html"><font face="HY동녘M" color="blue">운영자 소개</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:100%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="jw2.html"><font face="HY동녘M" color="blue">연구실적(법학)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://kyobobook.co.kr" target="_blank"><font face="HY동녘M" color="blue">인문저서</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://www.lawleader.co.kr/news/articleList.html?sc_serial_code=SRN3&view_type=sm" target="_blank"><font face="HY동녘M" color="blue">시사칼럼(로리더)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="column.html"><font face="HY동녘M" color="blue">시사칼럼(매스컴)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="interview.html"><font face="HY동녘M" color="blue">인터뷰기사</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="link.html"><font face="HY동녘M" color="blue">참고사이트</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://cafe.daum.net/HanbitGardenChurch/CkoX" target="_blank"><font face="HY동녘M" color="blue">한빛단상</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://khu.ac.kr" target="_blank"><font face="HY동녘M" color="blue">법학연구센터</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://163.180.63" target="_blank"><font face="HY동녘M" color="red">사이버범죄연구회</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td>&nbsp;</td>
-    </tr>
-    <tr>
-        <td><font face="HY동녘M" color="blue">[소셜미디어]</font>&nbsp;</td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://youtube.com" target="_blank"><font face="HY동녘M" color="blue">정완교수(유튜브)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://www.youtube.com/@minlinpapa" target="_blank"><font face="HY동녘M" color="blue">디지페서(유튜브)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://www.instagram.com/digifessor1" target="_blank"><font face="HY동녘M" color="blue">인스타그램</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://www.facebook.com/wankhu" target="_blank"><font face="HY동녘M" color="blue">페이스북</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://story.kakao.com/wann" target="_blank"><font face="HY동녘M" color="blue">카카오스토리</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://daum.net" target="_blank"><font face="HY동녘M" color="blue">법학강의실(다음)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://daum.net" target="_blank"><font face="HY동녘M" color="blue">사이버세상(다음)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://naver.com" target="_blank"><font face="HY동녘M" color="blue">사이버문화산책(네이버)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://naver.com" target="_blank"><font face="HY동녘M" color="blue">건전사이버문화(네이버)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://wanlaw.blogspot.com" target="_blank"><font face="HY동녘M" color="blue">세상만사 내뜻대로(구글)</font></a></p>
-        </td>
-    </tr>
-    <tr>
-        <td height="20">
-            <p style="line-height:120%;"><img src="dot.gif" vspace="4" hspace="2"> <a href="https://digifessor.blogspot.com" target="_blank"><font face="HY동녘M" color="blue">디지페서(구글)</font></a></p>
-        </td>
-    </tr>
-</table>
-</center>
+<!-- 메뉴 -->
+<div class="menu">
+
+    <a onclick="go('welcome.htm')">환 영 사</a>
+    <a onclick="go('jw.html')">운영자 소개</a>
+    <a onclick="go('jw2.html')">연구실적(법학)</a>
+
+    <a href="http://search.kyobobook.co.kr/search?keyword=%EC%A0%95%EC%99%84"
+       target="_blank">인문저서</a>
+
+    <a onclick="go('https://www.lawleader.co.kr/news/articleList.html?sc_serial_code=SRN3&view_type=sm')">
+        시사칼럼(로리더)
+    </a>
+
+    <a onclick="go('column.html')">시사칼럼(매스컴)</a>
+    <a onclick="go('interview.html')">인터뷰기사</a>
+    <a onclick="go('link.html')">참고사이트</a>
+
+    <a onclick="go('https://cafe.daum.net/HanbitGardenChurch/CkoX')">한빛단상</a>
+    <a onclick="go('http://lawcenter.khu.ac.kr')">법학연구센터</a>
+
+    <a onclick="parent.location.href='http://163.180.63.21/wanlaw/wwwhome/ccrf/ccrf/ecrg.html'"
+       style="color:red;">
+        사이버범죄연구회
+    </a>
+
+    <div class="section-title">[소셜미디어]</div>
+
+    <a href="https://www.youtube.com/@%EC%A0%95%EC%99%84%EA%B5%90%EC%88%98" target="_blank">
+        정완교수(유튜브)
+    </a>
+
+    <a href="https://www.youtube.com/@minlinpapa" target="_blank">
+        디지페서(유튜브)
+    </a>
+
+    <a href="https://www.instagram.com/digifessor1" target="_blank">
+        인스타그램
+    </a>
+
+    <a href="https://www.facebook.com/wankhu" target="_blank">
+        페이스북
+    </a>
+
+    <a onclick="go('https://story.kakao.com/wann')">카카오스토리</a>
+
+    <a onclick="go('http://cafe.daum.net/wanlec')">법학강의실(다음)</a>
+    <a onclick="go('http://cafe.daum.net/wanlaw')">사이버세상(다음)</a>
+
+    <a href="http://blog.naver.com/wanlaw" target="_blank">
+        사이버문화산책(네이버)
+    </a>
+
+    <a href="http://cafe.naver.com/wanlaw" target="_blank">
+        건전사이버문화(네이버)
+    </a>
+
+    <a href="https://wanlaw.blogspot.com" target="_blank">
+        세상만사 내뜻대로(구글)
+    </a>
+
+    <a href="https://digifessor.blogspot.com" target="_blank">
+        디지페서(구글)
+    </a>
+
+    <a href="https://wanlaw.tistory.com" target="_blank">
+        자유인 사랑방(티스토리)
+    </a>
+
+</div>
+
 </body>
 </html>
